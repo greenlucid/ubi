@@ -53,10 +53,17 @@ contract UBI is IUBI {
   /** @dev Constructor. If this becomes a proxy contract, then it will be changed to initialize.
    *  @param _proofOfHumanity The Proof Of Humanity registry to reference.
    */
-  constructor(IProofOfHumanity _proofOfHumanity) {
+  constructor(IProofOfHumanity _proofOfHumanity, IsUBI _sUBI) {
     proofOfHumanity = _proofOfHumanity;
     governor = msg.sender;
+    sUBI = _sUBI;
     counter.timestamp = uint32(block.timestamp);
+  }
+
+  function changeParams(IProofOfHumanity _proofOfHumanity, IsUBI _sUBI) external {
+    require(msg.sender == governor, "Only governor");
+    proofOfHumanity = _proofOfHumanity;
+    sUBI = _sUBI;
   }
 
   // ERC-20 stuff
@@ -76,7 +83,8 @@ contract UBI is IUBI {
     if (ubiAccount.isHuman && !ubiAccount.isStreaming) {
       streams++;
     }
-    return uint256(ubiAccount.balance + (streams * accruedPerSecond));
+    return uint256(ubiAccount.balance + (streams * accruedPerSecond *
+      (block.timestamp - ubiAccount.accruedSince)));
   }
 
   function transfer(address _to, uint256 _value) public returns (bool success) {
@@ -150,7 +158,7 @@ contract UBI is IUBI {
     // the requires above enforce a human increment.
     _updateCounter();
     counter.humanCount++;
-    // this transfer should let explorers know the human may hold the token.
+    // this transfer should let explorers about the token.
     emit Transfer(address(0), _human, 0);
   }
 
@@ -192,6 +200,9 @@ contract UBI is IUBI {
   function streamToHuman(address _you, address _target) onlySUBI external returns (address) {
     UbiAccount storage you = ubiAccounts[_you];
 
+    // arguably it should do a poh check but this is cheaper.
+    require(you.isHuman, "Not a registered human");
+
     address previousStream;
 
     // first, check if you were streaming to someone. if so, stop it.
@@ -216,6 +227,7 @@ contract UBI is IUBI {
       ubiAccounts[you.streamTarget].streamsReceived++;
     }
 
+    emit Transfer(address(0), _target, 0);
     return (previousStream);
   }
 
