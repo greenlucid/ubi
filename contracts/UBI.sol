@@ -30,10 +30,10 @@ contract UBI is IUBI {
   Counter internal counter;
 
   /// @dev Name of the token.
-  string constant public name = "gUBI";
+  string constant public name = "UBI";
 
   /// @dev Symbol of the token.
-  string constant public symbol = "gUBI";
+  string constant public symbol = "UBI";
 
   /// @dev Number of decimals of the token.
   uint8 constant public decimals = 7;
