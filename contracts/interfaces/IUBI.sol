@@ -32,4 +32,6 @@ interface IUBI is IERC20 {
   function getCounter() external view returns (Counter memory);
 
   function getUbiAccount(address _owner) external view returns (UbiAccount memory);
+
+  function mint(address _recipient, uint256 _amount) external;
 }

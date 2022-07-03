@@ -132,6 +132,16 @@ contract UBI is IUBI {
     return (balance);
   }
 
+  // mint function (intended for v1 v2 migration)
+
+  function mint(address _recipient, uint256 _amount) external {
+    require(msg.sender == governor, "Only governor");
+    ubiAccounts[_recipient].balance += uint80(_amount);
+    counter.hardSupply += uint80(_amount); // no need to update the other stuff, saves gas.
+
+    emit Transfer(address(0), _recipient, _amount);
+  }
+
   // UBI - human stuff
 
   // you want sUBI to be ERC-20 and for that you need to emit some events.
