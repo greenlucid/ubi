@@ -90,7 +90,7 @@ contract UBI is IUBI {
   function transfer(address _to, uint256 _value) public returns (bool success) {
     uint256 balance = balanceOf(msg.sender);
     require(balance >= _value, "Not enough balance");
-    _transfer(msg.sender, _to, _value);
+    _transfer(balance, msg.sender, _to, _value);
     return true;
   }
 
@@ -102,7 +102,7 @@ contract UBI is IUBI {
     // update allowance first
     allowance[_from][msg.sender] -= _value;
 
-    _transfer(msg.sender, _to, _value);
+    _transfer(balance, msg.sender, _to, _value);
     return true;
   }
 
@@ -112,17 +112,13 @@ contract UBI is IUBI {
     return true;
   }
 
-  function _transfer(address _from, address _to, uint256 _value) internal {
+  function _transfer(uint256 _balance, address _from, address _to, uint256 _value) internal {
     // update your balances
-    UbiAccount storage ownerAccount = ubiAccounts[msg.sender];
-    uint256 balance = balanceOf(_from);
-    ownerAccount.balance = uint80(balance - _value);
+    UbiAccount storage ownerAccount = ubiAccounts[_from];
+    ownerAccount.balance = uint80(_balance - _value);
     ownerAccount.accruedSince = uint32(block.timestamp);
-    // update receiver balances
-    uint256 receiverBalance = balanceOf(_to);
-    UbiAccount storage toAccount = ubiAccounts[_to];
-    toAccount.balance = uint80(receiverBalance + _value);
-    toAccount.accruedSince = uint32(block.timestamp);
+    // just increment reciever balance.
+    ubiAccounts[_to].balance += uint80(_value);
 
     emit Transfer(msg.sender, _to, _value);
   }
