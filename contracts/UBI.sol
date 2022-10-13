@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.15;
+pragma solidity ^0.8.17;
 
 import "./interfaces/IUBI.sol";
 import "./interfaces/IsUBI.sol";
@@ -18,6 +18,37 @@ interface IProofOfHumanity {
 }
 
 contract UBI is IUBI {
+
+  /* OldStorage */
+  
+  mapping (address => uint256) private oldBalance;
+
+  mapping (address => mapping (address => uint256)) private oldAllowance;
+
+  /// @dev A lower bound of the total supply. Does not take into account tokens minted as UBI by an address before it moves those (transfer or burn).
+  uint256 private oldTotalSupply;
+  
+  /// @dev Name of the token.
+  string private oldName;
+  
+  /// @dev Symbol of the token.
+  string private oldSymbol;
+  
+  /// @dev Number of decimals of the token.
+  uint8 private oldDecimals;
+
+  /// @dev How many tokens per second will be minted for every valid human.
+  uint256 private oldAccruedPerSecond;
+
+  /// @dev The contract's governor.
+  address private oldGovernor;
+  
+  /// @dev The Proof Of Humanity registry to reference.
+  IProofOfHumanity private oldProofOfHumanity; 
+
+  /// @dev Timestamp since human started accruing.
+  mapping(address => uint256) private oldAccruedSince;
+
   /* Storage */
 
   /// @dev most info is contained in here.
@@ -41,22 +72,17 @@ contract UBI is IUBI {
   /// @dev How many tokens per second will be minted for every valid human.
   uint256 constant public accruedPerSecond = 2778;
 
-  /// @dev The contract's governor.
-  address public governor;
-
   /// @dev The Proof Of Humanity registry to reference.
-  IProofOfHumanity public proofOfHumanity;
+  IProofOfHumanity constant public proofOfHumanity = IProofOfHumanity(0xc5e9ddebb09cd64dfacab4011a0d5cedaf7c9bdb);
 
   /// @dev The sUBI implementation (so that the streams are ERC-20s)
-  IsUBI public sUBI;
+  IsUBI constant public sUBI = IsUBI(0x0); // todo fill in later
 
-  /** @dev Constructor. If this becomes a proxy contract, then it will be changed to initialize.
-   *  @param _proofOfHumanity The Proof Of Humanity registry to reference.
-   */
-  constructor(IProofOfHumanity _proofOfHumanity, IsUBI _sUBI) {
-    proofOfHumanity = _proofOfHumanity;
-    governor = msg.sender;
-    sUBI = _sUBI;
+    /* Initializer */
+
+  /** @dev Constructor.
+  */
+  function initialize() public initializer {
     counter.timestamp = uint32(block.timestamp);
   }
 
@@ -247,5 +273,3 @@ contract UBI is IUBI {
     return counter;
   }
 }
-
-// minting would be interesting, if by "governor"

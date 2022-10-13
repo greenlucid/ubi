@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.15;
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+pragma solidity ^0.8.17;
 
-interface IsUBI is IERC20 {
+import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+
+interface IsUBI is IERC721 {
 
 }

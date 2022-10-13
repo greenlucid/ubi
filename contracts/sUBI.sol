@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.15;
+pragma solidity ^0.8.17;
 
 import "./interfaces/IsUBI.sol";
 import "./interfaces/IUBI.sol";
@@ -8,7 +8,7 @@ contract sUBI is IsUBI {
   // this contract has no state, other than the reference to UBI.sol
 
   /// @dev The UBI implementation (so that the streams are ERC-20s)
-  IUBI public UBI;
+  IUBI constant UBI = IUBI(0xdd1ad9a21ce722c151a836373babe42c868ce9a4);
 
   /// @dev Name of the token.
   string constant public name = "sUBI";
@@ -19,14 +19,7 @@ contract sUBI is IsUBI {
   /// @dev Number of decimals of the token.
   uint8 constant public decimals = 0;
 
-  /** @dev Constructor. If this becomes a proxy contract, then it will be changed to initialize.
-   *  @param _UBI The UBI contract to interact with.
-   */
-  constructor(IUBI _UBI) {
-    UBI = _UBI;
-  }
-
-  // ERC-20 stuff
+  // ERC-721 stuff
 
   function totalSupply() public view returns (uint256) {
     uint256 allSupply = uint256(UBI.getCounter().humanCount);
