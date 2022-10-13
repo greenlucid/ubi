@@ -57,6 +57,9 @@ contract UBI is IUBI {
   /// @dev for ERC-20 allowances
   mapping (address => mapping (address => uint256)) public allowance;
 
+  /// @dev Nonces for permit function. Must be modified only through permit function, where is incremented only by one.
+  mapping (address => uint256) public nonces;
+
   // just to keep track of the totalSupply.
   Counter internal counter;
 
@@ -77,6 +80,10 @@ contract UBI is IUBI {
 
   /// @dev The sUBI implementation (so that the streams are ERC-20s)
   IsUBI constant public sUBI = IsUBI(0x0); // todo fill in later
+
+  bytes32 constant public permitTypehash = keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
+
+  uint256 constant public chainId = 1; 
 
     /* Initializer */
 
@@ -266,5 +273,58 @@ contract UBI is IUBI {
 
   function getCounter() external view returns (Counter memory) {
     return counter;
+  }
+
+  /**
+  * @dev Approves, through a message signed by the `_owner`, `_spender` to spend `_value` tokens from `_owner`.
+  * @param _owner The address of the token owner.
+  * @param _spender The address of the spender.
+  * @param _value The amount of tokens to approve.
+  * @param _deadline The expiration time until which the signature will be considered valid.
+  * @param _v The signature v value.
+  * @param _r The signature r value.
+  * @param _s The signature s value.
+  */
+  function permit(address _owner, address _spender, uint256 _value, uint256 _deadline, uint8 _v, bytes32 _r, bytes32 _s) public {
+    require(_owner != address(0), "ERC20Permit: invalid owner");
+    require(block.timestamp <= _deadline, "ERC20Permit: expired deadline");
+    bytes32 structHash = keccak256(abi.encode(permitTypehash, _owner, _spender, _value, nonces[_owner], _deadline));
+    if (_getCurrentChainId() != chainId) {
+      domainSeparator = _buildDomainSeparator();
+    }
+    bytes32 hash = keccak256(abi.encodePacked("\x19\x01", domainSeparator, structHash));
+    address signer = ECDSA.recover(hash, _v, _r, _s);
+    require(signer == _owner, "ERC20Permit: invalid signature");
+    // Must be modified only here. Doesn't need SafeMath because can't reach overflow if incremented only here by one.
+    // See: https://www.schneier.com/blog/archives/2009/09/the_doghouse_cr.html
+    nonces[_owner]++;
+    allowance[_owner][_spender] = _value;
+    emit Approval(_owner, _spender, _value);
+  }
+
+  /**
+  * @dev Builds and returns the domain separator used in the encoding of the signature for `permit` using the current
+  * chain id.
+  */
+  function _buildDomainSeparator() internal view returns (bytes32) {
+    string memory version = "2";
+    return keccak256(
+      abi.encode(
+        keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
+        keccak256(bytes(name)),
+        keccak256(bytes(version)),
+        _getCurrentChainId(),
+        address(this)
+      )
+    ); 
+  }
+
+  /**
+  * @dev Returns the current chain id.
+  */
+  function _getCurrentChainId() internal pure returns (uint256 currentChainId) {
+    assembly {
+      currentChainId := chainid()
+    }
   }
 }
