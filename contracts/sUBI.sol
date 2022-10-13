@@ -25,7 +25,7 @@ contract sUBI is IsUBI {
     _;
   }
 
-  // ERC-721 stuff
+  // ERC-20 stuff
 
   function totalSupply() public view returns (uint256) {
     uint256 allSupply = uint256(UBI.getCounter().humanCount);
@@ -54,10 +54,6 @@ contract sUBI is IsUBI {
     emit Transfer(previousStream, _target, 1);
   }
 
-  function tokenURI(uint256 _tokenId) public pure returns (string memory) {
-    return ("");
-  }
-
   // Disabled some ERC-20 functions below
 
   function allowance(address _owner, address _spender) public pure returns (uint256) {
@@ -77,9 +73,5 @@ contract sUBI is IsUBI {
   function approve(address spender, uint256 amount) public pure returns (bool success) {
     // doesn't do anything
     return false;
-
-  function supportsInterface(bytes4 _interface) public pure returns (bool) {
-    return 0x80ac58cd == _interface;
   }
-
 }
