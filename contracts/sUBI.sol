@@ -19,6 +19,12 @@ contract sUBI is IsUBI {
   /// @dev Number of decimals of the token.
   uint8 constant public decimals = 0;
 
+    // you want sUBI to be ERC-20 and for that you need to emit some events.
+  modifier onlyUBI() {
+    require(msg.sender == address(UBI), "Only UBI interacts with this");
+    _;
+  }
+
   // ERC-721 stuff
 
   function totalSupply() public view returns (uint256) {
@@ -36,20 +42,20 @@ contract sUBI is IsUBI {
     return sUBIs;
   }
 
-  function registerHuman(address _human) external {
-    UBI.registerHuman(_human);
+  function registerHuman(address _human) onlyUBI external {
     emit Transfer(address(0), _human, 1); // symbolizes a "mint"
   }
 
-  function removeHuman(address _human) external {
-    address previousStream = UBI.removeHuman(msg.sender, _human);
-    emit Transfer(previousStream, address(0), 1); // actually, it was destroyed.
+  function removeHuman(address _human) onlyUBI external {
+    emit Transfer(_human, address(0), 1); // actually, it was destroyed.
   }
 
-  function streamToHuman(address _target) external {
-    // so first, this func needs to figure out 
-    address previousStream = UBI.streamToHuman(msg.sender, _target);
+  function streamToHuman(address _origin, address _target) onlyUBI external {
     emit Transfer(previousStream, _target, 1);
+  }
+
+  function tokenURI(uint256 _tokenId) public pure returns (string memory) {
+    return ("");
   }
 
   // Disabled some ERC-20 functions below
@@ -71,6 +77,9 @@ contract sUBI is IsUBI {
   function approve(address spender, uint256 amount) public pure returns (bool success) {
     // doesn't do anything
     return false;
+
+  function supportsInterface(bytes4 _interface) public pure returns (bool) {
+    return 0x80ac58cd == _interface;
   }
 
 }

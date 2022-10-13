@@ -170,18 +170,12 @@ contract UBI is IUBI {
 
   // UBI - human stuff
 
-  // you want sUBI to be ERC-20 and for that you need to emit some events.
-  modifier onlySUBI() {
-    require(msg.sender == address(sUBI), "Only sUBI interacts with this");
-    _;
-  }
-
   function _updateCounter() internal {
     counter.hardSupply = uint80(totalSupply());
     counter.timestamp = uint32(block.timestamp);
   }
 
-  function registerHuman(address _human) onlySUBI external {
+  function registerHuman(address _human) external {
     UbiAccount storage ubiAccount = ubiAccounts[_human];
     require(!ubiAccount.isHuman, "Already a human");
     require(proofOfHumanity.isRegistered(_human), "This human is not registered in PoH");
@@ -192,9 +186,10 @@ contract UBI is IUBI {
     counter.humanCount++;
     // this transfer should let explorers about the token.
     emit Transfer(address(0), _human, 0);
+    sUBI.registerHuman(_human);
   }
 
-  function removeHuman(address _reporter, address _human) onlySUBI external returns (address) {
+  function removeHuman(address _human) external {
     UbiAccount storage badHuman = ubiAccounts[_human];
     require(badHuman.isHuman, "Already not a human");
     require(!proofOfHumanity.isRegistered(_human), "This human is registered in PoH");
@@ -219,18 +214,18 @@ contract UBI is IUBI {
     _updateBalance(_human); // to update the timestamp
 
     // award this reward to the reporter
-    ubiAccounts[_reporter].balance += uint80(reportReward);
+    ubiAccounts[msg.sender].balance += uint80(reportReward);
 
     // the requires above enforce a human decrement.
     _updateCounter();
     counter.humanCount--;
 
     emit Transfer(previousStream, _reporter, reportReward);
-    return (previousStream);
+    sUBI.removeHuman(previousStream);
   }
 
-  function streamToHuman(address _you, address _target) onlySUBI external returns (address) {
-    UbiAccount storage you = ubiAccounts[_you];
+  function streamToHuman(address _target) external {
+    UbiAccount storage you = ubiAccounts[msg.sender];
 
     // arguably it should do a poh check but this is cheaper.
     require(you.isHuman, "Not a registered human");
@@ -243,12 +238,12 @@ contract UBI is IUBI {
       _updateBalance(you.streamTarget);
       ubiAccounts[you.streamTarget].streamsReceived--;
     } else {
-      previousStream = _you;
+      previousStream = msg.sender;
     }
 
     // now, start the stream.
-    _updateBalance(_you);
-    if (_target == _you) {
+    _updateBalance(msg.sender);
+    if (_target == msg.sender) {
       // target yourself to stop the stream.
       // we don't refund the "streamTarget" to 0 on purpose. gas will be saved on rewrite.
       you.isStreaming = false;
@@ -260,7 +255,7 @@ contract UBI is IUBI {
     }
 
     emit Transfer(address(0), _target, 0);
-    return (previousStream);
+    sUBI.streamToHuman(msg.sender, _target);
   }
 
   // VIEWS (manual getters got UbiAccount and Counter)
