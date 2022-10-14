@@ -3,6 +3,8 @@ pragma solidity ^0.8.17;
 
 import "./interfaces/IUBI.sol";
 import "./interfaces/IsUBI.sol";
+import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 /**
  * @title ProofOfHumanity Interface
@@ -17,7 +19,7 @@ interface IProofOfHumanity {
     );
 }
 
-contract UBI is IUBI {
+contract UBI is IUBI, Initializable {
 
   /* OldStorage */
   
@@ -60,6 +62,9 @@ contract UBI is IUBI {
   /// @dev Nonces for permit function. Must be modified only through permit function, where is incremented only by one.
   mapping (address => uint256) public nonces;
 
+  /// @dev Domain separator used for permit function.
+  bytes32 public domainSeparator;
+
   // just to keep track of the totalSupply.
   Counter internal counter;
 
@@ -72,14 +77,19 @@ contract UBI is IUBI {
   /// @dev Number of decimals of the token.
   uint8 constant public decimals = 7;
 
+  // decimals have changed so this is new ratio
+  uint256 constant private v1v2Ratio = 100791936645;
+  // todo set as the timestamp there will be when this contract is deployed.
+  uint256 constant private v1DeathTime = 0; 
+
   /// @dev How many tokens per second will be minted for every valid human.
   uint256 constant public accruedPerSecond = 2778;
 
   /// @dev The Proof Of Humanity registry to reference.
-  IProofOfHumanity constant public proofOfHumanity = IProofOfHumanity(0xc5e9ddebb09cd64dfacab4011a0d5cedaf7c9bdb);
+  IProofOfHumanity constant public proofOfHumanity = IProofOfHumanity(0xC5E9dDebb09Cd64DfaCab4011A0D5cEDaf7c9BDb);
 
   /// @dev The sUBI implementation (so that the streams are ERC-20s)
-  IsUBI constant public sUBI = IsUBI(0x0); // todo fill in later
+  IsUBI constant public sUBI = IsUBI(address(0x0)); // todo fill in later
 
   bytes32 constant public permitTypehash = keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
 
@@ -91,12 +101,7 @@ contract UBI is IUBI {
   */
   function initialize() public initializer {
     counter.timestamp = uint32(block.timestamp);
-  }
-
-  function changeParams(IProofOfHumanity _proofOfHumanity, IsUBI _sUBI) external {
-    require(msg.sender == governor, "Only governor");
-    proofOfHumanity = _proofOfHumanity;
-    sUBI = _sUBI;
+    // todo delete some old variables to get gas saves
   }
 
   // ERC-20 stuff
@@ -110,13 +115,21 @@ contract UBI is IUBI {
     return (allSupply - burnedSupply);
   }
 
-  function balanceOf(address _owner) public view returns (uint256) {
+  function oldBalanceOf(address _owner) public view returns (uint256 amount) {
+    if(oldAccruedSince[_owner] != 0 && proofOfHumanity.isRegistered(_owner)) {
+      amount = accruedPerSecond * (v1DeathTime - oldAccruedSince[_owner]);
+    }
+  }
+
+  function balanceOf(address _owner) public view returns (uint256 acc) {
+    // todo optimize (remove memory?)
     UbiAccount memory ubiAccount = ubiAccounts[_owner];
+    acc = ubiAccount.hasMigrated ? 0 : oldBalanceOf(_owner);
     uint256 streams = ubiAccount.streamsReceived;
     if (ubiAccount.isHuman && !ubiAccount.isStreaming) {
       streams++;
     }
-    return uint256(ubiAccount.balance + (streams * accruedPerSecond *
+    acc += uint256(ubiAccount.balance + (streams * accruedPerSecond *
       (block.timestamp - ubiAccount.accruedSince)));
   }
 
@@ -148,12 +161,24 @@ contract UBI is IUBI {
   function _transfer(uint256 _balance, address _from, address _to, uint256 _value) internal {
     // update your balances
     UbiAccount storage ownerAccount = ubiAccounts[_from];
+    if (!ownerAccount.hasMigrated) _migrate(_from);
     ownerAccount.balance = uint80(_balance - _value);
     ownerAccount.accruedSince = uint32(block.timestamp);
     // just increment reciever balance.
     ubiAccounts[_to].balance += uint80(_value);
+    // we purposedly not migrate receiver.
 
     emit Transfer(msg.sender, _to, _value);
+  }
+
+  function _migrate(address _human) internal {
+    UbiAccount storage ubiAccount = ubiAccounts[_human];
+    uint80 amount = uint80(oldBalanceOf(_human));
+    counter.hardSupply += amount;
+    ubiAccount.balance += amount;
+    ubiAccount.hasMigrated = true;
+    delete oldBalance[_human];
+    delete oldAccruedSince[_human];
   }
 
   // this function was not used in the erc-20 funcs to save gas.
@@ -163,16 +188,6 @@ contract UBI is IUBI {
     ubiAccount.accruedSince = uint32(block.timestamp);
     ubiAccount.balance = uint80(balance);
     return (balance);
-  }
-
-  // mint function (intended for v1 v2 migration)
-
-  function mint(address _recipient, uint256 _amount) external {
-    require(msg.sender == governor, "Only governor");
-    ubiAccounts[_recipient].balance += uint80(_amount);
-    counter.hardSupply += uint80(_amount); // no need to update the other stuff, saves gas.
-
-    emit Transfer(address(0), _recipient, _amount);
   }
 
   // UBI - human stuff
@@ -227,7 +242,7 @@ contract UBI is IUBI {
     _updateCounter();
     counter.humanCount--;
 
-    emit Transfer(previousStream, _reporter, reportReward);
+    emit Transfer(previousStream, msg.sender, reportReward);
     sUBI.removeHuman(previousStream);
   }
 
@@ -322,7 +337,7 @@ contract UBI is IUBI {
   /**
   * @dev Returns the current chain id.
   */
-  function _getCurrentChainId() internal pure returns (uint256 currentChainId) {
+  function _getCurrentChainId() internal view returns (uint256 currentChainId) {
     assembly {
       currentChainId := chainid()
     }

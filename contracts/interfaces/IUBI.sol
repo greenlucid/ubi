@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.15;
+pragma solidity ^0.8.17;
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 interface IUBI is IERC20 {
@@ -10,7 +10,8 @@ interface IUBI is IERC20 {
     uint32 streamsReceived;
     bool isHuman;
     bool isStreaming;
-    uint96 freespace;
+    bool hasMigrated;
+    uint88 freeSpace;
     address streamTarget;
     uint96 freespace2;
   }
@@ -25,13 +26,11 @@ interface IUBI is IERC20 {
 
   function registerHuman(address _human) external;
 
-  function removeHuman(address _reporter, address _human) external returns (address);
+  function removeHuman(address _human) external;
 
-  function streamToHuman(address _you, address _target) external returns (address);
+  function streamToHuman(address _target) external;
 
   function getCounter() external view returns (Counter memory);
 
   function getUbiAccount(address _owner) external view returns (UbiAccount memory);
-
-  function mint(address _recipient, uint256 _amount) external;
 }
