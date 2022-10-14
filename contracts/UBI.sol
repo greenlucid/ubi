@@ -101,7 +101,14 @@ contract UBI is IUBI, Initializable {
   */
   function initialize() public initializer {
     counter.timestamp = uint32(block.timestamp);
-    // todo delete some old variables to get gas saves
+    // we delete this stuff to trigger refunds and get a cheaper deployment
+    delete oldTotalSupply;
+    delete oldName;
+    delete oldSymbol;
+    delete oldDecimals;
+    delete oldAccruedPerSecond;
+    delete oldGovernor;
+    delete oldProofOfHumanity; 
   }
 
   // ERC-20 stuff
